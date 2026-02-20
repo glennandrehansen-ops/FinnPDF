@@ -120,7 +120,7 @@
             </div>
             
             <div class="pdf-image-container">
-                <img id="pdf-img-el" class="pdf-image" src="" alt="Annonsbilde mangler" onerror="this.style.display='none'">
+                <img id="pdf-img-el" class="pdf-image" src="" alt="Annonsbilde mangler" crossorigin="anonymous" onerror="this.style.display='none'">
             </div>
             
             <div class="pdf-details-box">
@@ -249,6 +249,8 @@
                 clone.style.position = 'absolute';
                 clone.style.top = '0';
                 clone.style.left = '0';
+                clone.style.width = '800px';
+                clone.style.backgroundColor = '#ffffff';
                 clone.style.zIndex = '-9999';
                 document.body.appendChild(clone);
 
@@ -256,11 +258,11 @@
                 const filename = `Finn_${finnKode}.pdf`;
 
                 const opt = {
-                    margin:       0,
+                    margin:       10,
                     filename:     filename,
                     image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
-                    jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+                    html2canvas:  { scale: 2, useCORS: true, windowWidth: 800, logging: false },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
                 await html2pdf().set(opt).from(clone).save();
