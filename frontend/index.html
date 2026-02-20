@@ -224,6 +224,11 @@
 
             try {
                 const adData = await fetchAdData(input);
+                
+                if (!adData || !adData.title || adData.title === 'Ikke funnet') {
+                    throw new Error('Klarte ikke å lese annonsen. Finn.no kan ha blokkert forespørselen, eller annonsen er slettet.');
+                }
+
                 populatePdfTemplate(adData);
 
                 const imgEl = document.getElementById('pdf-img-el');
@@ -238,12 +243,14 @@
                 }
 
                 const element = document.getElementById('pdf-template');
-                
-                element.style.display = 'block';
-                element.style.position = 'absolute';
-                element.style.top = '0';
-                element.style.left = '0';
-                element.style.zIndex = '-100';
+                const clone = element.cloneNode(true);
+                clone.id = 'pdf-clone';
+                clone.style.display = 'block';
+                clone.style.position = 'absolute';
+                clone.style.top = '0';
+                clone.style.left = '0';
+                clone.style.zIndex = '-9999';
+                document.body.appendChild(clone);
 
                 const finnKode = input.replace(/[^0-9]/g, '').substring(0, 10) || 'annonse';
                 const filename = `Finn_${finnKode}.pdf`;
@@ -256,9 +263,9 @@
                     jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
                 };
 
-                await html2pdf().set(opt).from(element).save();
+                await html2pdf().set(opt).from(clone).save();
                 
-                element.style.display = 'none';
+                document.body.removeChild(clone);
                 
                 setButtonState(false);
                 showMessage('PDF ble opprettet og lastet ned!');
