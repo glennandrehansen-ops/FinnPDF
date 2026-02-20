@@ -48,7 +48,6 @@
             color: #334155;
         }
         
-        /* Debug-panelet i appen */
         .debug-panel { 
             background: #0f172a; 
             color: #38bdf8; 
@@ -79,7 +78,6 @@
             <p class="text-slate-500 text-sm mt-1">Hent og arkiver annonser med feilsøking</p>
         </header>
 
-        <!-- Inntastingsfelt -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mb-6">
             <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Finn-kode eller lenke</label>
             <input 
@@ -97,10 +95,8 @@
             </button>
         </div>
 
-        <!-- Meldingsboks -->
         <div id="messageBox" class="hidden mb-6 p-4 rounded-xl text-sm text-center border"></div>
 
-        <!-- Forhåndsvisning -->
         <div id="previewContainer" class="hidden bg-white p-6 rounded-3xl shadow-sm border border-slate-100 transition-all">
             <h2 class="text-xs font-bold text-slate-400 uppercase mb-4 tracking-widest">Forhåndsvisning</h2>
             
@@ -121,14 +117,10 @@
             <div class="text-sm text-slate-600 whitespace-pre-wrap max-h-48 overflow-y-auto custom-scroll pr-2 mb-6 border-l-2 border-slate-100 pl-3" id="prev-desc"></div>
 
             <button id="downloadBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3.5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
                 <span>Lagre som PDF</span>
             </button>
         </div>
 
-        <!-- Loggpanel -->
         <div id="debugLog" class="hidden">
             <div class="debug-panel custom-scroll">
                 <p class="text-white opacity-40 mb-2 underline">System-logg:</p>
@@ -137,7 +129,6 @@
         </div>
     </main>
 
-    <!-- PDF Mal (Usynlig i grensesnittet) -->
     <div id="pdf-template">
         <div class="pdf-content">
             <div class="pdf-header">
@@ -190,12 +181,8 @@
 
         async function handleFetch() {
             const url = inputEl.value.trim();
-            if (!url) {
-                showStatus('Vennligst lim inn en lenke eller kode.', true);
-                return;
-            }
+            if (!url) return;
 
-            // Klargjør grensesnittet for ny henting
             btnText.classList.add('hidden');
             btnSpinner.classList.remove('hidden');
             fetchBtn.disabled = true;
@@ -203,44 +190,38 @@
             previewContainer.classList.add('hidden');
             logContent.innerHTML = '';
             
-            addLog(`Starter forespørsel for: ${url}`);
+            addLog(`Starter henting for: ${url}`);
 
             try {
                 const response = await fetch(`${BACKEND_URL}?url=${encodeURIComponent(url)}`);
-                if (!response.ok) {
-                    const errorJson = await response.json().catch(() => ({}));
-                    throw new Error(errorJson.error || `Serverfeil (${response.status})`);
-                }
+                if (!response.ok) throw new Error(`Serverfeil (${response.status})`);
                 
                 currentData = await response.json();
                 addLog('Data mottatt fra serveren.');
                 
                 if (currentData.logs) {
-                    currentData.logs.forEach(l => addLog(`Server-logg: ${l}`));
+                    currentData.logs.forEach(l => addLog(`Server: ${l}`));
                 }
 
-                // Oppdater forhåndsvisningen
-                document.getElementById('prev-title').textContent = currentData.title || 'Tittel ikke funnet';
-                document.getElementById('prev-seller').textContent = currentData.seller || 'Ukjent selger';
-                document.getElementById('prev-date').textContent = currentData.published || 'Ikke funnet';
-                document.getElementById('prev-desc').textContent = currentData.description || 'Beskrivelse mangler.';
+                document.getElementById('prev-title').textContent = currentData.title;
+                document.getElementById('prev-seller').textContent = currentData.seller;
+                document.getElementById('prev-date').textContent = currentData.published;
+                document.getElementById('prev-desc').textContent = currentData.description;
 
                 const prevImg = document.getElementById('prev-img');
                 if (currentData.image) {
                     prevImg.src = currentData.image;
                     prevImg.classList.remove('hidden');
-                    addLog('Bilde ble identifisert.');
                 } else {
                     prevImg.classList.add('hidden');
-                    addLog('Ingen bilde funnet for denne annonsen.');
                 }
 
                 previewContainer.classList.remove('hidden');
-                showStatus('Data hentet! Sjekk forhåndsvisningen under.');
+                showStatus('Data hentet!');
 
             } catch (err) {
-                addLog(`FEIL VED HENTING: ${err.message}`);
-                showStatus(`Kunne ikke hente data: ${err.message}`, true);
+                addLog(`FEIL: ${err.message}`);
+                showStatus(`Kunne ikke hente data.`, true);
             } finally {
                 btnText.classList.remove('hidden');
                 btnSpinner.classList.add('hidden');
@@ -251,13 +232,12 @@
         async function handleDownload() {
             if (!currentData) return;
             
-            addLog('Starter generering av PDF...');
-            const originalContent = downloadBtn.innerHTML;
+            addLog('Starter PDF-generering...');
             downloadBtn.disabled = true;
+            const originalText = downloadBtn.innerHTML;
             downloadBtn.textContent = 'Behandler...';
 
             try {
-                // Oppdater den skjulte malen med de faktiske dataene
                 document.getElementById('pdf-title-el').textContent = currentData.title;
                 document.getElementById('pdf-url-el').textContent = `Kilde: ${currentData.url}`;
                 document.getElementById('pdf-seller-el').textContent = currentData.seller;
@@ -267,63 +247,48 @@
 
                 const pdfImg = document.getElementById('pdf-img-el');
                 if (currentData.image) {
-                    addLog('Laster bilde for utskrift...');
                     pdfImg.src = currentData.image;
                     await new Promise((resolve) => {
                         pdfImg.onload = resolve;
-                        pdfImg.onerror = () => {
-                            addLog('Advarsel: Bildet kunne ikke legges til i PDF-en.');
-                            resolve();
-                        };
+                        pdfImg.onerror = resolve;
                     });
                 }
 
-                // Opprett en midlertidig synlig klone for html2pdf
                 const template = document.getElementById('pdf-template');
                 const clone = template.cloneNode(true);
-                clone.id = 'pdf-render-target';
                 clone.style.display = 'block';
-                clone.style.position = 'absolute';
+                clone.style.position = 'fixed';
                 clone.style.top = '0';
-                clone.style.left = '-10000px'; 
+                clone.style.left = '0';
+                clone.style.width = '800px';
+                clone.style.zIndex = '-9999';
+                clone.style.visibility = 'visible';
                 document.body.appendChild(clone);
 
                 const opt = {
                     margin: 10,
-                    filename: `Finn_Arkiv_${new Date().getTime()}.pdf`,
+                    filename: `Finn_Arkiv.pdf`,
                     image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { 
-                        scale: 2, 
-                        useCORS: true, 
-                        windowWidth: 800, 
-                        logging: false 
-                    },
+                    html2canvas: { scale: 2, useCORS: true, windowWidth: 800 },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
-                addLog('Konverterer til PDF-format...');
                 await html2pdf().set(opt).from(clone).save();
                 
                 document.body.removeChild(clone);
-                addLog('Nedlasting ferdigstilt.');
-                showStatus('PDF-filen er generert og lagret.');
+                addLog('PDF ferdig.');
+                showStatus('PDF er lagret.');
 
             } catch (err) {
                 addLog(`PDF-FEIL: ${err.message}`);
-                showStatus('Klarte ikke å generere PDF-filen.', true);
             } finally {
-                downloadBtn.innerHTML = originalContent;
+                downloadBtn.innerHTML = originalText;
                 downloadBtn.disabled = false;
             }
         }
 
         fetchBtn.addEventListener('click', handleFetch);
         downloadBtn.addEventListener('click', handleDownload);
-        
-        // Tillat bruk av Enter-tasten for å starte henting
-        inputEl.addEventListener('keypress', (e) => { 
-            if (e.key === 'Enter') handleFetch(); 
-        });
     </script>
 </body>
 </html>
