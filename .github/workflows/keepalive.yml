@@ -1,0 +1,13 @@
+name: Hold Render server vaaken
+
+on:
+  schedule:
+    - cron: "*/14 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send forespoersel til backend
+        run: curl -s https://BYTT-MEG-UT-MED-RENDER-URL.onrender.com/ping
