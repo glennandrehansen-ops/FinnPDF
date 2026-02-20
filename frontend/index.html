@@ -8,9 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         #pdf-template {
-            position: absolute;
-            left: -9999px;
-            top: 0;
+            display: none;
             width: 800px;
             background: white;
             padding: 40px;
@@ -201,6 +199,7 @@
                 imgEl.src = data.image;
                 imgEl.style.display = 'block';
             } else {
+                imgEl.removeAttribute('src');
                 imgEl.style.display = 'none';
             }
 
@@ -228,7 +227,7 @@
                 populatePdfTemplate(adData);
 
                 const imgEl = document.getElementById('pdf-img-el');
-                if (imgEl.src) {
+                if (adData.image) {
                     await new Promise((resolve) => {
                         if (imgEl.complete) resolve();
                         else {
@@ -239,6 +238,13 @@
                 }
 
                 const element = document.getElementById('pdf-template');
+                
+                element.style.display = 'block';
+                element.style.position = 'absolute';
+                element.style.top = '0';
+                element.style.left = '0';
+                element.style.zIndex = '-100';
+
                 const finnKode = input.replace(/[^0-9]/g, '').substring(0, 10) || 'annonse';
                 const filename = `Finn_${finnKode}.pdf`;
 
@@ -246,11 +252,13 @@
                     margin:       0,
                     filename:     filename,
                     image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true, logging: false },
+                    html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
                     jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
                 };
 
                 await html2pdf().set(opt).from(element).save();
+                
+                element.style.display = 'none';
                 
                 setButtonState(false);
                 showMessage('PDF ble opprettet og lastet ned!');
