@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finn til PDF</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        #pdf-template {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 800px;
+            background: white;
+            padding: 40px;
+            color: black;
+        }
+        .pdf-content {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+        .pdf-header {
+            border-bottom: 2px solid #0063fb;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .pdf-title {
+            font-size: 24px;
+            color: #333;
+            margin: 0;
+        }
+        .pdf-meta {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .pdf-image-container {
+            width: 100%;
+            max-height: 400px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            background: #f4f4f5;
+        }
+        .pdf-image {
+            max-width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+        }
+        .pdf-details-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .pdf-details-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .pdf-details-row span:first-child {
+            color: #64748b;
+        }
+        .pdf-description {
+            font-size: 14px;
+            white-space: pre-wrap;
+            color: #333;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans antialiased selection:bg-blue-200">
+
+    <main class="max-w-md mx-auto p-6 pt-12">
+        <header class="text-center mb-10">
+            <div class="w-16 h-16 bg-blue-600 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </div>
+            <h1 class="text-2xl font-medium tracking-tight text-slate-900">Finn.no Arkivator</h1>
+            <p class="text-slate-500 mt-2 text-sm">Lagre annonser trygt som PDF før de slettes.</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+            <label for="finnInput" class="block text-sm font-medium text-slate-700 mb-2">Finn-kode eller lenke</label>
+            <input 
+                type="text" 
+                id="finnInput" 
+                placeholder="F.eks. 123456789 eller finn.no/..." 
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all mb-6"
+            >
+            
+            <button 
+                id="generateBtn" 
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3.5 px-4 rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2"
+            >
+                <span id="btnText">Hent og lagre PDF</span>
+                <svg id="btnIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                
+                <svg id="loadingIcon" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div id="messageBox" class="mt-6 p-4 rounded-xl text-sm hidden text-center"></div>
+    </main>
+
+    <div id="pdf-template">
+        <div class="pdf-content">
+            <div class="pdf-header">
+                <h1 class="pdf-title" id="pdf-title-el">Tittel lastes...</h1>
+                <div class="pdf-meta" id="pdf-url-el">Lenke: -</div>
+            </div>
+            
+            <div class="pdf-image-container">
+                <img id="pdf-img-el" class="pdf-image" src="" alt="Annonsbilde mangler" onerror="this.style.display='none'">
+            </div>
+            
+            <div class="pdf-details-box">
+                <div class="pdf-details-row">
+                    <span>Selger:</span>
+                    <span id="pdf-seller-el" style="font-weight: 600;">-</span>
+                </div>
+                <div class="pdf-details-row">
+                    <span>Publisert:</span>
+                    <span id="pdf-pub-el">-</span>
+                </div>
+                <div class="pdf-details-row">
+                    <span>Sist endret:</span>
+                    <span id="pdf-mod-el">-</span>
+                </div>
+                <div class="pdf-details-row">
+                    <span>Dokument generert:</span>
+                    <span id="pdf-date-el">-</span>
+                </div>
+            </div>
+            
+            <h3 style="margin-bottom: 10px; color: #333;">Beskrivelse</h3>
+            <div class="pdf-description" id="pdf-desc-el">Beskrivelse mangler.</div>
+        </div>
+    </div>
+
+    <script>
+        const inputEl = document.getElementById('finnInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const btnText = document.getElementById('btnText');
+        const btnIcon = document.getElementById('btnIcon');
+        const loadingIcon = document.getElementById('loadingIcon');
+        const messageBox = document.getElementById('messageBox');
+
+        // Husk å bytte ut denne lenken når du har satt opp Render
+        const BACKEND_API_URL = 'https://BYTT-MEG-UT-MED-RENDER-URL.onrender.com/api/scrape'; 
+
+        function showMessage(msg, isError = false) {
+            messageBox.textContent = msg;
+            messageBox.className = `mt-6 p-4 rounded-xl text-sm text-center ${isError ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-700 border border-green-100'}`;
+            messageBox.classList.remove('hidden');
+        }
+
+        function setButtonState(isLoading) {
+            if (isLoading) {
+                btnText.textContent = 'Henter annonse...';
+                btnIcon.classList.add('hidden');
+                loadingIcon.classList.remove('hidden');
+                generateBtn.disabled = true;
+                generateBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                messageBox.classList.add('hidden');
+            } else {
+                btnText.textContent = 'Hent og lagre PDF';
+                btnIcon.classList.remove('hidden');
+                loadingIcon.classList.add('hidden');
+                generateBtn.disabled = false;
+                generateBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
+
+        async function fetchAdData(input) {
+            const response = await fetch(`${BACKEND_API_URL}?url=${encodeURIComponent(input)}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Backend feilet');
+            }
+            return await response.json();
+        }
+
+        function populatePdfTemplate(data) {
+            document.getElementById('pdf-title-el').textContent = data.title;
+            document.getElementById('pdf-url-el').textContent = `Lenke: ${data.url}`;
+            
+            const imgEl = document.getElementById('pdf-img-el');
+            if (data.image) {
+                imgEl.src = data.image;
+                imgEl.style.display = 'block';
+            } else {
+                imgEl.style.display = 'none';
+            }
+
+            document.getElementById('pdf-seller-el').textContent = data.seller;
+            document.getElementById('pdf-pub-el').textContent = data.published;
+            document.getElementById('pdf-mod-el').textContent = data.modified;
+            
+            const today = new Date();
+            document.getElementById('pdf-date-el').textContent = today.toLocaleDateString('no-NO') + ' ' + today.toLocaleTimeString('no-NO', {hour: '2-digit', minute:'2-digit'});
+            
+            document.getElementById('pdf-desc-el').textContent = data.description;
+        }
+
+        async function generatePDF() {
+            const input = inputEl.value.trim();
+            if (!input) {
+                showMessage('Vennligst lim inn en Finn-kode eller lenke først.', true);
+                return;
+            }
+
+            setButtonState(true);
+
+            try {
+                const adData = await fetchAdData(input);
+                populatePdfTemplate(adData);
+
+                const imgEl = document.getElementById('pdf-img-el');
+                if (imgEl.src) {
+                    await new Promise((resolve) => {
+                        if (imgEl.complete) resolve();
+                        else {
+                            imgEl.onload = resolve;
+                            imgEl.onerror = resolve;
+                        }
+                    });
+                }
+
+                const element = document.getElementById('pdf-template');
+                const finnKode = input.replace(/[^0-9]/g, '').substring(0, 10) || 'annonse';
+                const filename = `Finn_${finnKode}.pdf`;
+
+                const opt = {
+                    margin:       0,
+                    filename:     filename,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true, logging: false },
+                    jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+                };
+
+                await html2pdf().set(opt).from(element).save();
+                
+                setButtonState(false);
+                showMessage('PDF ble opprettet og lastet ned!');
+                inputEl.value = '';
+                
+            } catch (error) {
+                console.error(error);
+                setButtonState(false);
+                showMessage(error.message || 'Det oppsto en feil under generering av PDF. Prøv igjen.', true);
+            }
+        }
+
+        generateBtn.addEventListener('click', generatePDF);
+        inputEl.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') generatePDF();
+        });
+    </script>
+</body>
+</html>
