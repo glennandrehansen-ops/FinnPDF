@@ -10,4 +10,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send forespoersel til backend
-        run: curl -s https://BYTT-MEG-UT-MED-RENDER-URL.onrender.com/ping
+        run: curl -s https://finn-pdf-server.onrender.com/ping
