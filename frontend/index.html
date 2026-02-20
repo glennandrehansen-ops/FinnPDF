@@ -69,6 +69,18 @@
             white-space: pre-wrap;
             color: #333;
         }
+        /* Custom scrollbar for preview */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans antialiased selection:bg-blue-200">
@@ -94,12 +106,12 @@
             >
             
             <button 
-                id="generateBtn" 
+                id="fetchBtn" 
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3.5 px-4 rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2"
             >
-                <span id="btnText">Hent og lagre PDF</span>
+                <span id="btnText">Hent annonse</span>
                 <svg id="btnIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 
                 <svg id="loadingIcon" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -109,9 +121,41 @@
             </button>
         </div>
 
-        <div id="messageBox" class="mt-6 p-4 rounded-xl text-sm hidden text-center"></div>
+        <div id="messageBox" class="mt-4 p-4 rounded-xl text-sm hidden text-center"></div>
+
+        <!-- Ny seksjon for forhåndsvisning -->
+        <div id="previewContainer" class="hidden mt-6 bg-white p-6 rounded-3xl shadow-sm border border-slate-100 transition-all">
+            <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Forhåndsvisning</h2>
+            
+            <div class="mb-6">
+                <img id="prev-img" src="" class="w-full h-48 object-contain bg-slate-50 rounded-lg mb-4 hidden" alt="Annonsbilde">
+                <h3 id="prev-title" class="font-medium text-lg text-slate-800 leading-tight mb-3">Tittel</h3>
+                
+                <div class="text-sm text-slate-500 space-y-1.5 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="flex justify-between"><span>Selger:</span> <span id="prev-seller" class="font-medium text-slate-700 text-right"></span></p>
+                    <p class="flex justify-between"><span>Publisert:</span> <span id="prev-pub" class="text-slate-700 text-right"></span></p>
+                    <p class="flex justify-between"><span>Endret:</span> <span id="prev-mod" class="text-slate-700 text-right"></span></p>
+                </div>
+                
+                <h4 class="text-sm font-medium text-slate-700 mb-2">Beskrivelse</h4>
+                <div class="text-sm text-slate-600 whitespace-pre-wrap max-h-48 overflow-y-auto custom-scroll pr-3 border-l-2 border-slate-200 pl-3" id="prev-desc">
+                    Beskrivelse
+                </div>
+            </div>
+
+            <button 
+                id="downloadBtn" 
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3.5 px-4 rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2"
+            >
+                <span id="downloadBtnText">Last ned som PDF</span>
+                <svg id="downloadBtnIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+            </button>
+        </div>
     </main>
 
+    <!-- Skjult mal som brukes til å tegne selve PDF-en -->
     <div id="pdf-template">
         <div class="pdf-content">
             <div class="pdf-header">
@@ -149,35 +193,55 @@
 
     <script>
         const inputEl = document.getElementById('finnInput');
-        const generateBtn = document.getElementById('generateBtn');
+        const fetchBtn = document.getElementById('fetchBtn');
         const btnText = document.getElementById('btnText');
         const btnIcon = document.getElementById('btnIcon');
         const loadingIcon = document.getElementById('loadingIcon');
         const messageBox = document.getElementById('messageBox');
+        
+        const previewContainer = document.getElementById('previewContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadBtnText = document.getElementById('downloadBtnText');
+        const downloadBtnIcon = document.getElementById('downloadBtnIcon');
 
-        // Oppdatert til den nye Hugging Face adressen
         const BACKEND_API_URL = 'https://gahansen-finnpdf-server.hf.space/api/scrape'; 
+        let currentAdData = null;
 
         function showMessage(msg, isError = false) {
             messageBox.textContent = msg;
-            messageBox.className = `mt-6 p-4 rounded-xl text-sm text-center ${isError ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-700 border border-green-100'}`;
+            messageBox.className = `mt-4 p-4 rounded-xl text-sm text-center ${isError ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-700 border border-green-100'}`;
             messageBox.classList.remove('hidden');
         }
 
-        function setButtonState(isLoading) {
+        function setFetchButtonState(isLoading) {
             if (isLoading) {
                 btnText.textContent = 'Henter annonse...';
                 btnIcon.classList.add('hidden');
                 loadingIcon.classList.remove('hidden');
-                generateBtn.disabled = true;
-                generateBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                fetchBtn.disabled = true;
+                fetchBtn.classList.add('opacity-75', 'cursor-not-allowed');
                 messageBox.classList.add('hidden');
+                previewContainer.classList.add('hidden');
             } else {
-                btnText.textContent = 'Hent og lagre PDF';
+                btnText.textContent = 'Hent annonse';
                 btnIcon.classList.remove('hidden');
                 loadingIcon.classList.add('hidden');
-                generateBtn.disabled = false;
-                generateBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                fetchBtn.disabled = false;
+                fetchBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
+
+        function setDownloadButtonState(isLoading) {
+            if (isLoading) {
+                downloadBtnText.textContent = 'Genererer PDF...';
+                downloadBtnIcon.classList.add('hidden');
+                downloadBtn.disabled = true;
+                downloadBtn.classList.add('opacity-75', 'cursor-not-allowed');
+            } else {
+                downloadBtnText.textContent = 'Last ned som PDF';
+                downloadBtnIcon.classList.remove('hidden');
+                downloadBtn.disabled = false;
+                downloadBtn.classList.remove('opacity-75', 'cursor-not-allowed');
             }
         }
 
@@ -188,6 +252,24 @@
                 throw new Error(errorData.error || 'Backend feilet');
             }
             return await response.json();
+        }
+
+        function populatePreview(data) {
+            document.getElementById('prev-title').textContent = data.title;
+            
+            const imgEl = document.getElementById('prev-img');
+            if (data.image) {
+                imgEl.src = data.image;
+                imgEl.classList.remove('hidden');
+            } else {
+                imgEl.removeAttribute('src');
+                imgEl.classList.add('hidden');
+            }
+
+            document.getElementById('prev-seller').textContent = data.seller;
+            document.getElementById('prev-pub').textContent = data.published;
+            document.getElementById('prev-mod').textContent = data.modified;
+            document.getElementById('prev-desc').textContent = data.description;
         }
 
         function populatePdfTemplate(data) {
@@ -213,14 +295,14 @@
             document.getElementById('pdf-desc-el').textContent = data.description;
         }
 
-        async function generatePDF() {
+        async function handleFetch() {
             const input = inputEl.value.trim();
             if (!input) {
                 showMessage('Vennligst lim inn en Finn-kode eller lenke først.', true);
                 return;
             }
 
-            setButtonState(true);
+            setFetchButtonState(true);
 
             try {
                 const adData = await fetchAdData(input);
@@ -229,10 +311,30 @@
                     throw new Error('Klarte ikke å lese annonsen. Finn.no kan ha blokkert forespørselen, eller annonsen er slettet.');
                 }
 
-                populatePdfTemplate(adData);
+                currentAdData = adData;
+                populatePreview(adData);
+                
+                previewContainer.classList.remove('hidden');
+                setFetchButtonState(false);
+                
+            } catch (error) {
+                console.error(error);
+                setFetchButtonState(false);
+                showMessage(error.message || 'Det oppsto en feil under henting av annonsen. Prøv igjen.', true);
+            }
+        }
+
+        async function handleDownload() {
+            if (!currentAdData) return;
+            
+            setDownloadButtonState(true);
+            messageBox.classList.add('hidden');
+
+            try {
+                populatePdfTemplate(currentAdData);
 
                 const imgEl = document.getElementById('pdf-img-el');
-                if (adData.image) {
+                if (currentAdData.image) {
                     await new Promise((resolve) => {
                         if (imgEl.complete) resolve();
                         else {
@@ -254,7 +356,7 @@
                 clone.style.zIndex = '-9999';
                 document.body.appendChild(clone);
 
-                const finnKode = input.replace(/[^0-9]/g, '').substring(0, 10) || 'annonse';
+                const finnKode = inputEl.value.trim().replace(/[^0-9]/g, '').substring(0, 10) || 'annonse';
                 const filename = `Finn_${finnKode}.pdf`;
 
                 const opt = {
@@ -269,20 +371,20 @@
                 
                 document.body.removeChild(clone);
                 
-                setButtonState(false);
+                setDownloadButtonState(false);
                 showMessage('PDF ble opprettet og lastet ned!');
-                inputEl.value = '';
                 
             } catch (error) {
                 console.error(error);
-                setButtonState(false);
-                showMessage(error.message || 'Det oppsto en feil under generering av PDF. Prøv igjen.', true);
+                setDownloadButtonState(false);
+                showMessage('Det oppsto en feil under generering av PDF. Prøv igjen.', true);
             }
         }
 
-        generateBtn.addEventListener('click', generatePDF);
+        fetchBtn.addEventListener('click', handleFetch);
+        downloadBtn.addEventListener('click', handleDownload);
         inputEl.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') generatePDF();
+            if (e.key === 'Enter') handleFetch();
         });
     </script>
 </body>
