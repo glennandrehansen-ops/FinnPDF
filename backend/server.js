@@ -28,29 +28,20 @@ app.get('/api/scrape', async (req, res) => {
 
     let browser = null;
     try {
-        // Vi legger til flere flagg her for å spare minne på Renders gratisserver
         browser = await puppeteer.launch({
             headless: 'new',
             args: [
-                '--no-sandbox',
+                '--no-sandbox', 
                 '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage', // Viktig for Docker/Render miljøer
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
+                '--disable-dev-shm-usage',
                 '--disable-gpu'
             ]
         });
         
         const page = await browser.newPage();
-        
-        // Vi setter en lavere oppløsning for å bruke mindre ressurser
-        await page.setViewport({ width: 1280, height: 800 });
-        
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36');
         
-        // Vi øker timeout noe i tilfelle Finn.no er treg
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
         const adData = await page.evaluate(() => {
             const getText = (selector) => {
@@ -67,8 +58,8 @@ app.get('/api/scrape', async (req, res) => {
             const description = getText('.import-decoration') || getText('[data-testid="ad-description"]');
             const seller = getText('[data-testid="profile-name"]') || getText('.profile-name') || 'Ukjent selger';
             
-            let published = 'Ukjent';
-            let modified = 'Ukjent';
+            let published = 'Ikke funnet';
+            let modified = 'Ikke funnet';
             
             const trElements = document.querySelectorAll('tr, .key-value-list__item');
             trElements.forEach(tr => {
@@ -96,13 +87,13 @@ app.get('/api/scrape', async (req, res) => {
         res.json(adData);
 
     } catch (error) {
-        console.error('Detaljert feil ved skraping:', error.message);
+        console.error('Feil under skraping:', error);
         if (browser) await browser.close();
-        res.status(500).json({ error: 'Kunne ikke hente data. Dette skyldes ofte begrensninger i serverens minne.' });
+        res.status(500).json({ error: 'Kunne ikke hente data fra Finn.no.' });
     }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server startet på port ${PORT}`);
+    console.log(`Server kjører på port ${PORT}`);
 });
